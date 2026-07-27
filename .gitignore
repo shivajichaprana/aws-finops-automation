@@ -1,0 +1,29 @@
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfplan.bin
+crash.log
+crash.*.log
+
+# Variable files that may contain sensitive values
+*.tfvars
+*.tfvars.json
+!example.tfvars
+
+# Editor / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Python (Lambda tooling)
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+dist/
+build/
