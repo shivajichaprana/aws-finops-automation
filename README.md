@@ -20,8 +20,12 @@ The initial capability set establishes the alerting backbone:
   Anomaly Detection publish to, with email subscriptions and a least-privilege
   topic policy scoped to this account.
 
-Subsequent capabilities layer on rightsizing reports from Compute Optimizer,
-idle-resource discovery, cost-allocation tagging, and a spend dashboard.
+A Compute Optimizer **rightsizing report** collects EC2, Auto Scaling group,
+EBS, and Lambda recommendations on a schedule, estimates the monthly savings,
+and delivers a report to S3 and the alert topic. A set of **Athena cost views**
+turns the Cost and Usage Report into analysis-ready views for spend trends and
+tag allocation. Subsequent capabilities layer on idle-resource discovery,
+cost-allocation tagging, and a spend dashboard.
 
 ## Layout
 
@@ -31,7 +35,11 @@ idle-resource discovery, cost-allocation tagging, and a spend dashboard.
 | `providers.tf`   | AWS provider pinned to the cost-management control-plane region. |
 | `variables.tf`   | Input variables with validation.                               |
 | `budgets.tf`     | Budgets, Cost Anomaly Detection, and the alert SNS topic.      |
-| `outputs.tf`     | Topic ARN, budget names, and anomaly monitor/subscription ARNs. |
+| `outputs.tf`     | Topic ARN, budget names, anomaly and rightsizing/Athena refs.  |
+| `rightsizing.tf` | Compute Optimizer report Lambda, report bucket, KMS, schedule. |
+| `athena.tf`      | Athena workgroup, views database, and CUR cost-view queries.   |
+| `lambda/rightsizing/` | Report generator source and its documentation.            |
+| `athena/`        | CUR cost-view SQL templates.                                   |
 
 ## Configuration
 
@@ -45,6 +53,11 @@ idle-resource discovery, cost-allocation tagging, and a spend dashboard.
 | `alert_email_addresses`           | `[]`          | Emails subscribed to the alert topic (confirm opt-in). |
 | `enable_anomaly_detection`        | `true`        | Toggle the anomaly monitor and subscription.           |
 | `anomaly_total_impact_threshold`  | `100`         | Minimum anomaly dollar impact before notifying.        |
+| `enable_rightsizing_report`       | `true`        | Toggle the Compute Optimizer report Lambda.            |
+| `rightsizing_schedule_expression` | weekly        | EventBridge schedule for the rightsizing report.       |
+| `rightsizing_savings_threshold`   | `1`           | Minimum monthly USD savings shown in the report.       |
+| `enable_athena_cost_views`        | `false`       | Register the Athena CUR cost views (needs a CUR table). |
+| `cur_database_name` / `cur_table_name` | `null`   | Glue database/table of the Cost and Usage Report.      |
 
 ## Quick start
 

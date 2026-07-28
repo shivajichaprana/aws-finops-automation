@@ -1,0 +1,4 @@
+# The Lambda runtime already ships boto3/botocore, so no third-party runtime
+# dependencies are bundled. This file pins the test-time SDK used by the unit
+# suite. Keep the runtime dependency-free to minimise the deployment package.
+boto3>=1.34.0

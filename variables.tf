@@ -141,3 +141,96 @@ variable "anomaly_notification_frequency" {
     error_message = "anomaly_notification_frequency must be IMMEDIATE, DAILY, or WEEKLY."
   }
 }
+
+###############################################################################
+# Rightsizing report
+###############################################################################
+
+variable "enable_rightsizing_report" {
+  description = "Whether to deploy the Compute Optimizer rightsizing report Lambda, its report bucket, and its schedule."
+  type        = bool
+  default     = true
+}
+
+variable "rightsizing_schedule_expression" {
+  description = "EventBridge schedule expression that triggers the rightsizing report. Defaults to weekly (Mondays 07:00 UTC)."
+  type        = string
+  default     = "cron(0 7 ? * MON *)"
+}
+
+variable "rightsizing_savings_threshold" {
+  description = "Minimum estimated monthly USD savings for a recommendation to appear in the report."
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.rightsizing_savings_threshold >= 0
+    error_message = "rightsizing_savings_threshold cannot be negative."
+  }
+}
+
+variable "rightsizing_recommendation_rank" {
+  description = "Compute Optimizer recommendation option rank to report on: 1 (most conservative) to 3 (most aggressive)."
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.rightsizing_recommendation_rank >= 1 && var.rightsizing_recommendation_rank <= 3
+    error_message = "rightsizing_recommendation_rank must be between 1 and 3."
+  }
+}
+
+variable "report_retention_days" {
+  description = "Number of days rightsizing report objects are retained in S3 before expiry."
+  type        = number
+  default     = 365
+
+  validation {
+    condition     = var.report_retention_days >= 1
+    error_message = "report_retention_days must be at least 1."
+  }
+}
+
+variable "log_retention_days" {
+  description = "CloudWatch Logs retention, in days, for the rightsizing Lambda."
+  type        = number
+  default     = 90
+
+  validation {
+    condition     = contains([1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096, 1827, 2192, 2557, 2922, 3288, 3653], var.log_retention_days)
+    error_message = "log_retention_days must be a value supported by CloudWatch Logs."
+  }
+}
+
+###############################################################################
+# Athena cost views over the CUR
+###############################################################################
+
+variable "enable_athena_cost_views" {
+  description = "Whether to register the Athena cost views over the CUR. Requires an existing CUR Glue table supplied via cur_database_name and cur_table_name."
+  type        = bool
+  default     = false
+}
+
+variable "cur_database_name" {
+  description = "Glue database that contains the Cost and Usage Report table. Required when enable_athena_cost_views is true."
+  type        = string
+  default     = null
+}
+
+variable "cur_table_name" {
+  description = "Glue table name of the Cost and Usage Report. Required when enable_athena_cost_views is true."
+  type        = string
+  default     = null
+}
+
+variable "athena_results_retention_days" {
+  description = "Number of days Athena query result objects are retained before expiry."
+  type        = number
+  default     = 30
+
+  validation {
+    condition     = var.athena_results_retention_days >= 1
+    error_message = "athena_results_retention_days must be at least 1."
+  }
+}
