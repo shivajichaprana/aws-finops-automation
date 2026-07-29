@@ -1,0 +1,3 @@
+# The runtime provides boto3/botocore; no third-party packages are bundled.
+# Pinned here only to document the interface the handler is written against.
+boto3>=1.34.0

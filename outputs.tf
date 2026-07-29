@@ -39,8 +39,8 @@ output "rightsizing_schedule_rule" {
 }
 
 output "finops_kms_key_arn" {
-  description = "ARN of the KMS key encrypting reports and logs, or null when the rightsizing pipeline is disabled."
-  value       = local.rightsizing_enabled ? aws_kms_key.finops[0].arn : null
+  description = "ARN of the KMS key encrypting reports and logs, or null when no key-owning feature is enabled."
+  value       = local.finops_key_arn
 }
 
 output "athena_workgroup_name" {
@@ -56,4 +56,19 @@ output "cost_views_database" {
 output "cost_view_query_names" {
   description = "Names of the registered Athena named queries for the cost views."
   value       = [for q in aws_athena_named_query.cost_view : q.name]
+}
+
+output "idle_finder_report_bucket" {
+  description = "S3 bucket idle-resource reports are written to, or null when the finder is disabled."
+  value       = local.idle_finder_enabled ? aws_s3_bucket.idle_reports[0].id : null
+}
+
+output "idle_finder_function_name" {
+  description = "Name of the idle-resource finder Lambda, or null when the finder is disabled."
+  value       = local.idle_finder_enabled ? aws_lambda_function.idle_finder[0].function_name : null
+}
+
+output "idle_finder_schedule_rule" {
+  description = "EventBridge rule that triggers the idle-resource finder, or null when disabled."
+  value       = local.idle_finder_enabled ? aws_cloudwatch_event_rule.idle_finder[0].name : null
 }

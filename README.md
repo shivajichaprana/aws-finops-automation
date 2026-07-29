@@ -22,10 +22,13 @@ The initial capability set establishes the alerting backbone:
 
 A Compute Optimizer **rightsizing report** collects EC2, Auto Scaling group,
 EBS, and Lambda recommendations on a schedule, estimates the monthly savings,
-and delivers a report to S3 and the alert topic. A set of **Athena cost views**
-turns the Cost and Usage Report into analysis-ready views for spend trends and
-tag allocation. Subsequent capabilities layer on idle-resource discovery,
-cost-allocation tagging, and a spend dashboard.
+and delivers a report to S3 and the alert topic. An **idle-resource finder**
+reports unattached EBS volumes, unassociated Elastic IPs, and stale snapshots —
+skipping anything tagged for retention — so reclaimable spend is surfaced
+without deleting anything automatically. A set of **Athena cost views** turns
+the Cost and Usage Report into analysis-ready views for spend trends and tag
+allocation. Subsequent capabilities layer on cost-allocation tagging and a
+spend dashboard.
 
 ## Layout
 
@@ -37,8 +40,10 @@ cost-allocation tagging, and a spend dashboard.
 | `budgets.tf`     | Budgets, Cost Anomaly Detection, and the alert SNS topic.      |
 | `outputs.tf`     | Topic ARN, budget names, anomaly and rightsizing/Athena refs.  |
 | `rightsizing.tf` | Compute Optimizer report Lambda, report bucket, KMS, schedule. |
+| `cleanup.tf`     | Idle-resource finder Lambda, report bucket, and schedule.      |
 | `athena.tf`      | Athena workgroup, views database, and CUR cost-view queries.   |
-| `lambda/rightsizing/` | Report generator source and its documentation.            |
+| `lambda/rightsizing/` | Rightsizing report generator source and its documentation. |
+| `lambda/idle-finder/` | Idle-resource finder source and its documentation.         |
 | `athena/`        | CUR cost-view SQL templates.                                   |
 
 ## Configuration
@@ -56,6 +61,10 @@ cost-allocation tagging, and a spend dashboard.
 | `enable_rightsizing_report`       | `true`        | Toggle the Compute Optimizer report Lambda.            |
 | `rightsizing_schedule_expression` | weekly        | EventBridge schedule for the rightsizing report.       |
 | `rightsizing_savings_threshold`   | `1`           | Minimum monthly USD savings shown in the report.       |
+| `enable_idle_finder`              | `true`        | Toggle the idle-resource finder Lambda.                |
+| `idle_finder_schedule_expression` | weekly        | EventBridge schedule for the idle-resource finder.     |
+| `stale_snapshot_age_days`         | `90`          | Minimum snapshot age reported as stale.                |
+| `idle_exclusion_tag_keys`         | `[finops:keep]` | Tag keys that exempt a resource from the report.     |
 | `enable_athena_cost_views`        | `false`       | Register the Athena CUR cost views (needs a CUR table). |
 | `cur_database_name` / `cur_table_name` | `null`   | Glue database/table of the Cost and Usage Report.      |
 

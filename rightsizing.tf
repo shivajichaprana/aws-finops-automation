@@ -13,7 +13,7 @@ locals {
 
   # The shared KMS key is needed whenever reports are written or Athena results
   # are encrypted, so it outlives the rightsizing pipeline alone.
-  finops_key_count = (var.enable_rightsizing_report || var.enable_athena_cost_views) ? 1 : 0
+  finops_key_count = (var.enable_rightsizing_report || var.enable_athena_cost_views || var.enable_idle_finder) ? 1 : 0
   rightsizing_fn_name  = "${var.name_prefix}-rightsizing-report"
   report_bucket_name   = "${var.name_prefix}-rightsizing-reports-${data.aws_caller_identity.current.account_id}"
 }

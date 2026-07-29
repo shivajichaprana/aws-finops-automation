@@ -234,3 +234,58 @@ variable "athena_results_retention_days" {
     error_message = "athena_results_retention_days must be at least 1."
   }
 }
+
+###############################################################################
+# Idle-resource cleanup reporting
+###############################################################################
+
+variable "enable_idle_finder" {
+  description = "Whether to deploy the idle-resource finder Lambda, its report bucket, and its schedule."
+  type        = bool
+  default     = true
+}
+
+variable "idle_finder_schedule_expression" {
+  description = "EventBridge schedule expression that triggers the idle-resource finder. Defaults to weekly (Mondays 08:00 UTC)."
+  type        = string
+  default     = "cron(0 8 ? * MON *)"
+}
+
+variable "stale_snapshot_age_days" {
+  description = "Minimum age, in days, for an EBS snapshot to be reported as stale."
+  type        = number
+  default     = 90
+
+  validation {
+    condition     = var.stale_snapshot_age_days >= 0
+    error_message = "stale_snapshot_age_days cannot be negative."
+  }
+}
+
+variable "orphaned_snapshots_only" {
+  description = "When true, only snapshots whose source volume no longer exists are reported; otherwise every snapshot past the age threshold is reported."
+  type        = bool
+  default     = false
+}
+
+variable "idle_exclusion_tag_keys" {
+  description = "Tag keys that exempt a resource from the idle-resource report. Any resource carrying one of these keys is skipped."
+  type        = list(string)
+  default     = ["finops:keep"]
+
+  validation {
+    condition     = length(var.idle_exclusion_tag_keys) > 0
+    error_message = "Provide at least one exclusion tag key."
+  }
+}
+
+variable "idle_report_retention_days" {
+  description = "Number of days idle-resource report objects are retained in S3 before expiry."
+  type        = number
+  default     = 365
+
+  validation {
+    condition     = var.idle_report_retention_days >= 1
+    error_message = "idle_report_retention_days must be at least 1."
+  }
+}
