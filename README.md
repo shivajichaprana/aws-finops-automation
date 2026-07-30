@@ -27,8 +27,10 @@ reports unattached EBS volumes, unassociated Elastic IPs, and stale snapshots â€
 skipping anything tagged for retention â€” so reclaimable spend is surfaced
 without deleting anything automatically. A set of **Athena cost views** turns
 the Cost and Usage Report into analysis-ready views for spend trends and tag
-allocation. Subsequent capabilities layer on cost-allocation tagging and a
-spend dashboard.
+allocation. Cost-allocation tag activation makes
+user-defined tags billable dimensions in Cost Explorer and the CUR, and a
+CloudWatch **cost dashboard** summarizes estimated charges in total, over time,
+and per service.
 
 ## Layout
 
@@ -42,6 +44,8 @@ spend dashboard.
 | `rightsizing.tf` | Compute Optimizer report Lambda, report bucket, KMS, schedule. |
 | `cleanup.tf`     | Idle-resource finder Lambda, report bucket, and schedule.      |
 | `athena.tf`      | Athena workgroup, views database, and CUR cost-view queries.   |
+| `allocation.tf`  | Cost-allocation tag activation for user-defined tag keys.       |
+| `dashboard.tf`   | CloudWatch dashboard for total, trend, and per-service spend.   |
 | `lambda/rightsizing/` | Rightsizing report generator source and its documentation. |
 | `lambda/idle-finder/` | Idle-resource finder source and its documentation.         |
 | `athena/`        | CUR cost-view SQL templates.                                   |
@@ -67,6 +71,9 @@ spend dashboard.
 | `idle_exclusion_tag_keys`         | `[finops:keep]` | Tag keys that exempt a resource from the report.     |
 | `enable_athena_cost_views`        | `false`       | Register the Athena CUR cost views (needs a CUR table). |
 | `cur_database_name` / `cur_table_name` | `null`   | Glue database/table of the Cost and Usage Report.      |
+| `cost_allocation_tag_keys`        | `[Project, Environment, Team, CostCenter, Owner]` | Tag keys activated as cost-allocation tags. |
+| `enable_cost_dashboard`           | `true`        | Toggle the CloudWatch cost dashboard.                  |
+| `dashboard_service_dimensions`    | `[AmazonEC2, AmazonS3, AmazonRDS, AWSLambda, AmazonCloudWatch]` | Services charted on the per-service widget. |
 
 ## Quick start
 

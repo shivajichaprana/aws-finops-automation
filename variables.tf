@@ -289,3 +289,37 @@ variable "idle_report_retention_days" {
     error_message = "idle_report_retention_days must be at least 1."
   }
 }
+
+###############################################################################
+# Cost-allocation tagging and reporting dashboard
+###############################################################################
+
+variable "cost_allocation_tag_keys" {
+  description = "User-defined tag keys to activate as cost-allocation tags so spend can be grouped by them in Cost Explorer, Budgets, and the CUR. Activation applies in the management (payer) account and takes effect once AWS observes each tag on a billable resource."
+  type        = list(string)
+  default     = ["Project", "Environment", "Team", "CostCenter", "Owner"]
+
+  validation {
+    condition = alltrue([
+      for key in var.cost_allocation_tag_keys : length(key) > 0 && length(key) <= 128
+    ])
+    error_message = "Each cost-allocation tag key must be 1-128 characters."
+  }
+}
+
+variable "enable_cost_dashboard" {
+  description = "Whether to create the CloudWatch dashboard summarizing estimated charges."
+  type        = bool
+  default     = true
+}
+
+variable "dashboard_service_dimensions" {
+  description = "AWS/Billing ServiceName dimension values charted individually on the per-service cost widget (e.g. AmazonEC2, AmazonS3, AmazonRDS)."
+  type        = list(string)
+  default     = ["AmazonEC2", "AmazonS3", "AmazonRDS", "AWSLambda", "AmazonCloudWatch"]
+
+  validation {
+    condition     = length(var.dashboard_service_dimensions) > 0
+    error_message = "Provide at least one service dimension for the per-service cost widget."
+  }
+}

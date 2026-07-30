@@ -72,3 +72,13 @@ output "idle_finder_schedule_rule" {
   description = "EventBridge rule that triggers the idle-resource finder, or null when disabled."
   value       = local.idle_finder_enabled ? aws_cloudwatch_event_rule.idle_finder[0].name : null
 }
+
+output "activated_cost_allocation_tags" {
+  description = "User-defined tag keys activated as cost-allocation tags."
+  value       = [for tag in aws_ce_cost_allocation_tag.user_defined : tag.tag_key]
+}
+
+output "cost_dashboard_name" {
+  description = "Name of the CloudWatch cost dashboard, or null when the dashboard is disabled."
+  value       = local.cost_dashboard_enabled ? aws_cloudwatch_dashboard.cost[0].dashboard_name : null
+}
