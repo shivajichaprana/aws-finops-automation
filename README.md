@@ -2,13 +2,46 @@
 
 Cost visibility and optimization for AWS, delivered as Terraform. This project
 codifies the guardrails that keep spend predictable — budgets, machine-learning
-anomaly detection, rightsizing insight, idle-resource cleanup, and cost
-reporting — so financial controls live in version control alongside the rest of
-the platform.
+anomaly detection, rightsizing insight, idle-resource cleanup, cost-allocation
+tagging, and dashboards — so financial controls live in version control
+alongside the rest of the platform. Everything ships as templates with
+placeholder values and is never executed against a real account here.
+
+## Architecture at a glance
+
+```mermaid
+flowchart TD
+    subgraph Detect[Detect and alert]
+        BUD[AWS Budgets\nactual + forecasted] --> SNS[(Encrypted SNS\ncost-alert topic)]
+        CAD[Cost Anomaly Detection\nservice monitor] --> SNS
+        SNS --> EMAIL[Email subscribers]
+    end
+
+    subgraph Optimize[Find savings]
+        SCH1[EventBridge\nweekly schedule] --> RS[Rightsizing Lambda\nCompute Optimizer]
+        SCH2[EventBridge\nweekly schedule] --> IDLE[Idle-resource Lambda\nEBS / EIP / snapshots]
+        RS --> RSB[(Reports bucket\nSSE-KMS)]
+        IDLE --> IDB[(Reports bucket\nSSE-KMS)]
+        RS --> SNS
+        IDLE --> SNS
+    end
+
+    subgraph Report[Analyze and report]
+        CUR[Cost & Usage Report] --> ATH[Athena cost views]
+        TAGS[Cost-allocation tags] --> CE[Cost Explorer / CUR]
+        BILL[AWS/Billing metrics] --> DASH[CloudWatch cost dashboard]
+    end
+
+    KMS[[Customer-managed KMS key\nrotation enabled]] -.encrypts.-> RSB
+    KMS -.encrypts.-> IDB
+    KMS -.encrypts.-> ATH
+```
+
+Full component walkthrough in [docs/architecture.md](docs/architecture.md);
+the operator playbook for acting on findings is in
+[docs/savings-runbook.md](docs/savings-runbook.md).
 
 ## What this provisions
-
-The initial capability set establishes the alerting backbone:
 
 - **AWS Budgets** — an account-wide monthly cost budget with tiered
   actual-spend thresholds plus a forecasted-overrun alarm, and optional
@@ -16,39 +49,42 @@ The initial capability set establishes the alerting backbone:
 - **Cost Anomaly Detection** — a service-dimensional monitor over the whole
   account with an SNS subscription that fires only once an anomaly clears a
   configurable dollar-impact floor.
-- **SNS alerting** — a single encrypted topic that both Budgets and Cost
-  Anomaly Detection publish to, with email subscriptions and a least-privilege
-  topic policy scoped to this account.
-
-A Compute Optimizer **rightsizing report** collects EC2, Auto Scaling group,
-EBS, and Lambda recommendations on a schedule, estimates the monthly savings,
-and delivers a report to S3 and the alert topic. An **idle-resource finder**
-reports unattached EBS volumes, unassociated Elastic IPs, and stale snapshots —
-skipping anything tagged for retention — so reclaimable spend is surfaced
-without deleting anything automatically. A set of **Athena cost views** turns
-the Cost and Usage Report into analysis-ready views for spend trends and tag
-allocation. Cost-allocation tag activation makes
-user-defined tags billable dimensions in Cost Explorer and the CUR, and a
-CloudWatch **cost dashboard** summarizes estimated charges in total, over time,
-and per service.
+- **SNS alerting** — a single encrypted topic that Budgets, Cost Anomaly
+  Detection, and both report Lambdas publish to, with email subscriptions and a
+  least-privilege topic policy scoped to this account.
+- **Rightsizing report** — a scheduled Compute Optimizer Lambda that collects
+  EC2, Auto Scaling group, EBS, and Lambda recommendations, estimates monthly
+  savings, and delivers a report to S3 and the alert topic. Strictly read-only.
+- **Idle-resource finder** — a scheduled Lambda that reports unattached EBS
+  volumes, unassociated Elastic IPs, and stale snapshots, skipping anything
+  tagged for retention. Reports reclaimable spend without deleting anything.
+- **Athena cost views** — SQL views over the Cost and Usage Report for spend
+  trends, per-account and per-service breakdowns, and tag allocation.
+- **Cost-allocation tagging** — activation of user-defined tag keys as billable
+  dimensions in Cost Explorer, Budgets, and the CUR.
+- **Cost dashboard** — a CloudWatch dashboard summarizing estimated charges in
+  total, over time, and per service.
 
 ## Layout
 
-| Path             | Purpose                                                        |
-| ---------------- | -------------------------------------------------------------- |
-| `versions.tf`    | Terraform and provider version constraints.                    |
-| `providers.tf`   | AWS provider pinned to the cost-management control-plane region. |
-| `variables.tf`   | Input variables with validation.                               |
-| `budgets.tf`     | Budgets, Cost Anomaly Detection, and the alert SNS topic.      |
-| `outputs.tf`     | Topic ARN, budget names, anomaly and rightsizing/Athena refs.  |
-| `rightsizing.tf` | Compute Optimizer report Lambda, report bucket, KMS, schedule. |
-| `cleanup.tf`     | Idle-resource finder Lambda, report bucket, and schedule.      |
-| `athena.tf`      | Athena workgroup, views database, and CUR cost-view queries.   |
-| `allocation.tf`  | Cost-allocation tag activation for user-defined tag keys.       |
-| `dashboard.tf`   | CloudWatch dashboard for total, trend, and per-service spend.   |
-| `lambda/rightsizing/` | Rightsizing report generator source and its documentation. |
-| `lambda/idle-finder/` | Idle-resource finder source and its documentation.         |
-| `athena/`        | CUR cost-view SQL templates.                                   |
+| Path                  | Purpose                                                        |
+| --------------------- | -------------------------------------------------------------- |
+| `versions.tf`         | Terraform and provider version constraints.                    |
+| `providers.tf`        | AWS provider pinned to the cost-management control-plane region. |
+| `variables.tf`        | Input variables with validation.                               |
+| `budgets.tf`          | Budgets, Cost Anomaly Detection, and the alert SNS topic.      |
+| `rightsizing.tf`      | Compute Optimizer report Lambda, report bucket, KMS, schedule. |
+| `cleanup.tf`          | Idle-resource finder Lambda, report bucket, and schedule.      |
+| `athena.tf`           | Athena workgroup, views database, and CUR cost-view queries.   |
+| `allocation.tf`       | Cost-allocation tag activation for user-defined tag keys.      |
+| `dashboard.tf`        | CloudWatch dashboard for total, trend, and per-service spend.  |
+| `outputs.tf`          | Topic ARN, budget names, anomaly and rightsizing/Athena refs.  |
+| `lambda/rightsizing/` | Rightsizing report generator source and its documentation.     |
+| `lambda/idle-finder/` | Idle-resource finder source and its documentation.             |
+| `athena/`             | CUR cost-view SQL templates.                                   |
+| `tests/`              | Pytest suites for both report Lambdas.                         |
+| `docs/`               | Architecture and savings runbook.                              |
+| `Makefile`            | Validation, deploy, report, and lint entry points.             |
 
 ## Configuration
 
@@ -78,28 +114,51 @@ and per service.
 ## Quick start
 
 ```bash
-terraform init
+make init
+make validate
 terraform plan \
   -var 'monthly_budget_amount=2500' \
   -var 'alert_email_addresses=["finops@example.invalid"]'
-terraform apply
+make apply
 ```
 
 > All examples use placeholder values (account id `123456789012`,
-> `example.invalid` addresses). Supply your own before applying. The
-> configuration ships as templates and is never executed against a real
-> account here.
+> `example.invalid` addresses). Supply your own before applying.
+
+## Savings levers
+
+The controls here surface reclaimable spend across five levers; each is
+explained end to end, with the report fields to act on, in
+[docs/savings-runbook.md](docs/savings-runbook.md):
+
+- **Right-size over-provisioned compute** from Compute Optimizer findings.
+- **Reclaim idle resources** — unattached volumes, unassociated Elastic IPs,
+  and stale snapshots.
+- **Catch anomalies early** before an unexpected spend pattern compounds.
+- **Stay ahead of the budget** with forecasted-overrun alerts.
+- **Attribute spend** through cost-allocation tags and Athena views so each
+  team owns its share.
+
+## Validation
+
+`make validate` runs `terraform fmt -check`, `init -backend=false`, and
+`terraform validate`; `make lint` runs TFLint; `make test` runs the pytest
+suites. These mirror the checks enforced in continuous integration.
 
 ## Design principles
 
-- **Alerts route through one topic.** Budgets and anomaly detection share a
-  single SNS topic, so notification wiring lives in one place.
+- **Alerts route through one topic.** Budgets, anomaly detection, and both
+  report Lambdas share a single SNS topic, so notification wiring lives in one
+  place.
 - **Forecast before you overspend.** The highest budget threshold also arms a
   forecasted alarm to warn ahead of an actual overrun.
-- **Least privilege by default.** The topic policy only lets the AWS
+- **Report, never delete.** The optimization Lambdas are strictly read-only;
+  remediation stays a human decision.
+- **Least privilege by default.** Each Lambda role is scoped to exactly the
+  describe/get calls it needs, and the topic policy only lets AWS
   cost-management services publish, and only from this account.
-- **Everything is toggle-able.** Anomaly detection, the SNS topic, and each
-  per-service budget can be turned on or off without editing the module.
+- **Everything is toggle-able.** Each capability can be turned on or off
+  without editing the module.
 
 ## License
 
